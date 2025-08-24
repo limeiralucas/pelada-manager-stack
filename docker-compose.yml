@@ -1,0 +1,56 @@
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: pelada-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: pelada
+    volumes:
+      - mongodb_data:/data/db
+
+  # Backend Service
+  backend:
+    image: node:20-alpine
+    container_name: pelada-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    working_dir: /app
+    command: >
+      sh -c "npm install && npm run dev"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      MONGO_URL: mongodb://mongodb:27017
+      MONGO_DB_NAME: pelada
+      SESSION_SECRET: your-secret-key-here
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://192.168.99.161:5173
+    depends_on:
+      - mongodb
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Frontend Service
+  frontend:
+    image: node:18-alpine
+    container_name: pelada-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    working_dir: /app
+    command: >
+      sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      - VITE_API_URL=http://192.168.99.161:4000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
